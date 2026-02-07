@@ -1,3 +1,16 @@
+## ⚠️ Canonical Reading Notice
+
+This repository must be read as a description of a structural law,
+not as an AI safety product or control system.
+
+SLIME does not constrain intelligence.
+SLIME does not guide behavior.
+SLIME does not prevent harm.
+
+SLIME removes the representability of certain effects.
+
+Any interpretation of SLIME as a behavioral, ethical, probabilistic,
+or governance-based system is incorrect.
 
 ---
 

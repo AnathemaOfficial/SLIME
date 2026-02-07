@@ -24,6 +24,18 @@ World
 
 ```
 
+### Terminology Lock
+
+The following terms must not be used to describe SLIME:
+- control
+- permission
+- policy
+- safety layer
+- prison
+- guardrail
+
+SLIME has no decision-making capacity.
+
 ---
 
 ## Fixed Modules (v0)
