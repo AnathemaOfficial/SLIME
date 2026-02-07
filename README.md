@@ -1,4 +1,5 @@
-## ⚠️ Canonical Reading Notice
+#<img width="1000" height="1000" alt="6" src="https://github.com/user-attachments/assets/f8a2aabe-6bea-4a7f-a28a-6fc3d1728df0" />
+# ⚠️ Canonical Reading Notice
 
 This repository must be read as a description of a structural law,
 not as an AI safety product or control system.
