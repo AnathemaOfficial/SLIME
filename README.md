@@ -1,4 +1,5 @@
-<img width="1000" height="1000" alt="PHOSPHOR Token (3)" src="https://github.com/user-attachments/assets/64a23dd6-8025-4b6a-a6e7-ec2dd9779b15" />
+
+<img width="1000" height="1000" alt="PHOSPHOR Token (4)" src="https://github.com/user-attachments/assets/7406635f-14da-46f5-b814-d618a68d2338" />
 
 # ⚠️ Canonical Reading Notice
 
