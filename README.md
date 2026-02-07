@@ -1,5 +1,5 @@
 
-<img width="1411" height="898" alt="SLIME" src="https://github.com/user-attachments/assets/2e4a75f9-caf6-4275-9ca5-b1a5ad0252dd" />
+<img width="1411" height="898" alt="SLIME" src="https://github.com/user-attachments/assets/01b2e58b-4def-4277-8d14-0bcc6a349d7b" />
 
 # ⚠️ Canonical Reading Notice
 
