@@ -1,4 +1,7 @@
-## ⚠️ Canonical Reading Notice
+
+<img width="1411" height="898" alt="SLIME" src="https://github.com/user-attachments/assets/01b2e58b-4def-4277-8d14-0bcc6a349d7b" />
+
+# ⚠️ Canonical Reading Notice
 
 This repository must be read as a description of a structural law,
 not as an AI safety product or control system.
@@ -16,6 +19,7 @@ or governance-based system is incorrect.
 
 # **SLIME v0**
 
+**Systemic Law Invariant Machine Environnement**
 **Sealed Execution Environment for Non-Negotiable Action Limits**
 
 ---
