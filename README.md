@@ -1,5 +1,4 @@
-
-<img width="1000" height="1000" alt="PHOSPHOR Token (4)" src="https://github.com/user-attachments/assets/7406635f-14da-46f5-b814-d618a68d2338" />
+<img width="1411" height="898" alt="SLIME" src="https://github.com/user-attachments/assets/9cbf5c04-2bdc-4582-badc-3a3038a3aedd" />
 
 # ⚠️ Canonical Reading Notice
 
@@ -19,6 +18,7 @@ or governance-based system is incorrect.
 
 # **SLIME v0**
 
+**Systemic Law Invariant Machine Environnement**
 **Sealed Execution Environment for Non-Negotiable Action Limits**
 
 ---
