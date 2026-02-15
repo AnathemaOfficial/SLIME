@@ -1,0 +1,18 @@
+# Rust
+/target/
+**/target/
+Cargo.lock
+
+# Local vault / deploy scratch
+/vault/
+**/vault/
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
