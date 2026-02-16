@@ -1,5 +1,6 @@
 
-<img width="1411" height="898" alt="SLIME copy" src="https://github.com/user-attachments/assets/544ae8cd-94ac-40a8-b032-d72de179a58b" />
+<img width="1411" height="898" alt="SLIME copy" src="https://github.com/user-attachments/assets/cdef369f-aff7-468a-bf0f-c932cad06e54" />
+
 
 # ⚠️ Canonical Reading Notice
 
