@@ -42,6 +42,17 @@ but parallel primitives built around invariant enforcement.
 
 ---
 
+## Formal Specification
+
+The structural model of SLIME v0 is formally defined in:
+
+- SLIME_FORMAL_CORE.md
+
+This document defines the invariant mapping model (A → E ∪ ∅)
+in purely formal terms, without narrative, policy, or operational framing.
+
+---
+
 # **SLIME v0**
 
 **Systemic Law Invariant Machine Environnement**
