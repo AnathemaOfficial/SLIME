@@ -16,6 +16,26 @@ If you apply these models, you are reading it incorrectly.
 
 ---
 
+## SLIME Does Not "Decide"
+
+SLIME does not evaluate intent.
+It does not judge.
+It does not apply policies.
+
+It defines a structural boundary.
+
+The binary verdict is not a decision.
+It is the manifestation of an invariant.
+
+--
+
+Trust Model
+
+Trust is not placed in runtime behavior.
+Trust is placed in immutability and invariant sealing.
+
+---
+
 ## What SLIME Actually Is
 
 SLIME v0 is a **structural impossibility primitive**.
@@ -103,3 +123,17 @@ Do not ask:
 Ask instead:
 
 > “What becomes structurally impossible once SLIME defines the actuation boundary?”
+
+---
+
+## Deployment Model
+
+SLIME v0 is not designed as:
+
+- a containerized microservice
+- a cloud-native service
+- a distributed component
+
+It is a sealed local appliance.
+
+---

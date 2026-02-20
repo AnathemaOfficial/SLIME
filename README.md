@@ -29,6 +29,19 @@ or governance-based system is incorrect.
 
 ---
 
+## Foundational Context
+
+SLIME is part of a broader invariant-driven architecture:
+
+- SYF-Core (mathematical invariant layer) https://github.com/AnathemaOfficial/SYF-Core
+- SYF-Minimal (minimal canonical invariant spec) https://github.com/AnathemaOfficial/SYF-Minimal
+- SYF-Lab (experimental environment) https://github.com/AnathemaOfficial/SYF-Lab
+
+These are not extensions of SLIME,
+but parallel primitives built around invariant enforcement.
+
+---
+
 # **SLIME v0**
 
 **Systemic Law Invariant Machine Environnement**
