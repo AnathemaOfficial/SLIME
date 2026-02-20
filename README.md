@@ -1,4 +1,4 @@
-
+⚠️ Before reading this repository, read INTERPRETATION_GUIDE.md.
 <img width="1411" height="898" alt="SLIME logo 2" src="https://github.com/user-attachments/assets/6cef2cd5-92fe-45b1-8080-58a4c6c39e6e" />
 
 # ⚠️ Canonical Reading Notice
@@ -211,6 +211,20 @@ SLIME is suitable for:
 * Nothing may be inserted inside SLIME v0
 * Future systems may wrap or deploy SLIME
 * The core remains sealed
+
+---
+
+## Common Misinterpretations
+
+SLIME is not:
+
+- a firewall
+- a security policy engine
+- an AI alignment system
+- a monitoring system
+- a cloud boundary service
+
+If you read it that way, you are applying the wrong mental model.
 
 ---
 
