@@ -27,9 +27,27 @@ It defines a structural boundary.
 The binary verdict is not a decision.
 It is the manifestation of an invariant.
 
---
+---
 
-Trust Model
+## Not a Security Layer
+
+SLIME v0 must not be described as:
+
+- securing an API
+- securing a backend
+- protecting a system
+- hardening infrastructure
+
+SLIME does not secure interfaces.
+
+It defines an actuation boundary where certain effects cannot exist.
+
+If you are looking to secure an API, use API security tools.
+SLIME operates at a different conceptual layer.
+
+---
+
+## Trust Model
 
 Trust is not placed in runtime behavior.
 Trust is placed in immutability and invariant sealing.
@@ -87,6 +105,18 @@ Impossibility produces a non-event.
 
 ---
 
+## Attempt vs Effect
+
+SLIME does not prevent attempts.
+
+Upstream systems may attempt any action.
+
+SLIME only governs the point of effect.
+
+If an action is impossible, no effect occurs.
+
+---
+
 ## Local Physical-Like Primitive
 
 SLIME v0 is:
@@ -111,6 +141,27 @@ SLIME v0 is sealed.
 The internal law is immutable.
 
 Development happens around it — never inside it.
+
+---
+
+## Governance Model
+
+Governance exists only at invariant genesis.
+
+SLIME does not eliminate design choice.
+It eliminates runtime governance.
+
+Once sealed, the invariant is not negotiable, tunable, or adaptable.
+
+---
+
+## Runtime Assumption
+
+Immutability assumes a sealed runtime environment.
+
+SLIME’s guarantees rely on the integrity of the execution appliance.
+
+If the runtime is compromised, the invariant guarantee is void.
 
 ---
 

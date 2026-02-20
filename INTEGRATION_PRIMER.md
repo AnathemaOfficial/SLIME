@@ -46,6 +46,8 @@ Stop.
 
 There is no fallback.
 
+SLIME does not prevent upstream retry logic. It only governs effect.
+
 ---
 
 ## Step 3 — Respect the Binary Verdict
@@ -71,6 +73,18 @@ The actuator:
 
 SLIME is client-only on egress.
 If egress fails, SLIME fail-closes.
+
+
+---
+
+## Interface Constraints
+
+Ingress and Egress are schema-locked and fail-closed.
+
+- ActionRequests must conform to a strict schema.
+- Any malformed or undefined request is rejected.
+- Egress produces no partial effects.
+- If actuation fails, nothing occurs.
 
 ---
 

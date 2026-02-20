@@ -157,7 +157,7 @@ If actuation cannot occur, **nothing occurs**.
 ### 4. Dashboard (Read-Only)
 
 * Observational only
-* Displays what passed and what was blocked
+* Displays execution facts without semantic explanation
 * No controls
 * No tuning
 * No influence on execution
