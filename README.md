@@ -1,5 +1,17 @@
-⚠️ Before reading this repository, read INTERPRETATION_GUIDE.md.
 <img width="1411" height="898" alt="SLIME logo 2" src="https://github.com/user-attachments/assets/6cef2cd5-92fe-45b1-8080-58a4c6c39e6e" />
+
+---
+
+⚠️ Before reading this repository:
+
+1. Read `INTERPRETATION_GUIDE.md`
+2. Read `INTEGRATION_PRIMER.md`
+
+If you interpret SLIME as a firewall, security tool, policy engine,
+AI alignment system, cloud boundary, or monitoring framework,
+you are using the wrong mental model.
+
+---
 
 # ⚠️ Canonical Reading Notice
 

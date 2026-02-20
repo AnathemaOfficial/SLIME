@@ -1,120 +1,105 @@
-INTERPRETATION_GUIDE.md
-SLIME v0 — Correct Ontological Reading
+# INTERPRETATION_GUIDE — Correct Ontological Reading
 
-This document exists to remove interpretative ambiguity.
+This document removes interpretative ambiguity.
 
-SLIME v0 must not be read as:
+SLIME v0 must NOT be read as:
 
-a firewall
+- a firewall
+- a security policy engine
+- an access control system
+- an AI safety tool
+- a monitoring/logging framework
+- a cloud-native microservice
+- a confinement system
 
-a policy engine
+If you apply these models, you are reading it incorrectly.
 
-an access control system
+---
 
-an AI safety tool
+## What SLIME Actually Is
 
-a monitoring or logging framework
-
-a cloud microservice
-
-a confinement system
-
-If you interpret SLIME using any of these frames, you are reading it incorrectly.
-
-What SLIME Actually Is
-
-SLIME v0 is a structural impossibility primitive.
+SLIME v0 is a **structural impossibility primitive**.
 
 It does not:
 
-decide
-
-evaluate
-
-interpret
-
-negotiate
-
-tune
-
-monitor
-
-optimize
+- decide
+- evaluate
+- interpret
+- negotiate
+- tune
+- monitor
+- optimize
 
 It enforces impossibility at the point of effect.
 
-If an action is impossible, it does not fail.
-It does not return a reason.
-It does not emit feedback.
+If an action is impossible:
+- it does not fail
+- it does not return a reason
+- it does not emit feedback
 
 It does not exist.
 
-No Policy. No Governance. No Moral Layer.
+---
+
+## No Policy. No Governance. No Moral Layer.
 
 SLIME does not allow or forbid.
 
 It defines an actuation boundary where certain actions are structurally absent.
 
 There is no “why”.
-There is no rule set.
 There is no configuration.
+There are no rules exposed.
 
-No Feedback Principle
+---
+
+## No Feedback Principle
 
 SLIME emits no signal for:
 
-learning
+- learning
+- retry
+- boundary probing
+- optimization
+- tuning
 
-tuning
+Impossibility produces a non-event.
 
-retry
+---
 
-optimization
+## Local Physical-Like Primitive
 
-boundary probing
+SLIME v0 is:
 
-An impossibility produces a non-event.
+- Linux-first
+- local-only
+- machine-contained
+- fail-closed
+- non-distributed
+- non-elastic
 
-No semantic explanation is available.
-
-Local Physical-Like Primitive
-
-SLIME is:
-
-Linux-first
-
-local-only
-
-machine-contained
-
-fail-closed
-
-It is not a distributed service.
 It is not cloud-native.
-It is not elastic.
+It is not scalable infrastructure.
+It is not a network service.
 
-It is a sealed local law-layer.
+---
 
-Canonical Immutability
+## Canonical Immutability
 
 SLIME v0 is sealed.
 
 The internal law is immutable.
 
-Development occurs around it — never inside it.
+Development happens around it — never inside it.
 
-If you are looking for configuration, customization, or extension of the core:
+---
 
-you are outside the canonical model.
+## Correct Mental Model
 
-Correct Mental Model
+Do not ask:
 
-Do not think:
+> “How does SLIME secure my system?”
 
-“How does SLIME secure a system?”
+Ask instead:
 
-Instead ask:
-
-“What becomes structurally impossible once SLIME defines the actuation boundary?”
-
-That is the correct reading.
+> “What becomes structurally impossible once SLIME defines the actuation boundary?”
