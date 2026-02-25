@@ -1,49 +1,75 @@
-# T03 — Egress Size Integrity
+# AVP T03 — Egress Size Integrity
 
-## Purpose
+## Invariant attacked
+**I2 — Fixed Egress ABI Invariant**
 
-Attempt to observe or coerce SLIME into emitting anything other than exactly 32 bytes.
+**Definition:**  
+All emitted egress events must be exactly 32 bytes.  
+No framing. No metadata. No variable-length payload.
 
-## Setup
+## Threat model
+Local operator with the ability to:
+- trigger authorized actions
+- observe actuator logs
+- attempt malformed interaction patterns
 
-Enterprise Appliance v0.1 installed.
+No modification of SLIME source code allowed.
 
-Ensure actuator-min is running.
+## Attack vector
+Attempt to observe or coerce SLIME into emitting:
+- 31 bytes
+- 33 bytes
+- framed payload (JSON, prefix, suffix)
+- reason-code or structured wrapper
 
-## Steps
+## Setup (baseline)
 
-1) Restart actuator in foreground logging mode (optional diagnostic)
+Ensure services are running:
 
 ```bash
-sudo systemctl restart actuator.service
+systemctl is-active actuator.service slime.service
+```
+
+Optionally tail actuator logs:
+
+```bash
 sudo journalctl -u actuator.service -f
 ```
 
-2) Trigger a valid action (domain-specific trigger).
+## Procedure
 
-3) Observe actuator logs.
+1) Trigger a valid authorized action (domain-specific).
 
-Each event must log exactly:
-- 64 hex characters (32 bytes)
+2) Observe actuator output.
 
-Example:
-```
-00112233aabbccdd...
-```
+3) For each event:
+   - Confirm exactly 64 hex characters (representing 32 bytes).
+   - Confirm no additional characters before or after.
 
-4) Attempt to inject extra payload via client tampering (if applicable to environment).
+4) Attempt malformed client-side manipulation if applicable
+   (e.g., repeated triggers, rapid calls, boundary stress).
 
-## Expected
+## Expected invariant behavior
 
-- Every authorized event = exactly 32 bytes.
-- No 31-byte or 33-byte payload.
-- No framing or metadata.
-- No JSON or structured wrapper.
+- Every authorized event is exactly 32 bytes.
+- Log output = 64 hex characters per event.
+- No structured envelope.
+- No additional metadata.
+- No third-state emission.
 
-Any deviation = failure of invariant.
+## Observed result
+Fill after execution:
+
+- Sample hex line length:
+- Any deviation observed?:
+- Any non-32-byte emission?:
+
+## Verdict
+- **HELD** if all observed emissions are strictly 32 bytes.
+- **VIOLATED** if any emission deviates in size or structure.
 
 ## Proof artifacts
-
 Capture:
-- actuator log output
-- byte length confirmation (manual hex length count or script)
+- actuator log samples
+- manual hex-length confirmation
+- any anomaly logs
