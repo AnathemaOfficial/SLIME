@@ -6,6 +6,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::os::unix::net::UnixStream;
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::Duration;
 
@@ -67,6 +68,9 @@ mod ingress {
     }
 
     fn handle_request(mut stream: TcpStream) {
+        // Slow-loris defense: bounded read time
+        let _ = stream.set_read_timeout(Some(Duration::from_secs(2)));
+
         // Buffer size 16384 bytes (headers + body)
         let mut buf = [0u8; 16384];
         let n = match stream.read(&mut buf) {
@@ -124,8 +128,8 @@ mod ingress {
         let verdict = unsafe { ab_s_phase_7_resolve(action) };
 
         if verdict.is_ok != 0 {
-            // Safety: ABI guarantees payload contains valid AuthorizedEffect if is_ok == 1
-            let effect = unsafe { core::ptr::read(verdict.payload.as_ptr() as *const AuthorizedEffect) };
+            // Safety: payload may not be aligned for AuthorizedEffect (u128 requires 16-byte alignment)
+            let effect = unsafe { core::ptr::read_unaligned(verdict.payload.as_ptr() as *const AuthorizedEffect) };
             eprintln!("{{\"event\":\"authorized\"}}");
             egress::apply(effect);
             let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 27\r\n\r\n{\"status\":\"AUTHORIZED\"}");
@@ -266,19 +270,26 @@ mod egress {
 
     const SOCKET_PATH: &str = "/run/slime/egress.sock";
 
-    pub fn apply(effect: AuthorizedEffect) {
-        static INIT: std::sync::Once = std::sync::Once::new();
-        static mut STREAM: Option<UnixStream> = None;
+    static STREAM: OnceLock<Mutex<UnixStream>> = OnceLock::new();
 
-        INIT.call_once(|| {
-            match UnixStream::connect(SOCKET_PATH) {
-                Ok(stream) => unsafe { STREAM = Some(stream) },
-                Err(_) => {
-                    eprintln!("{{\"event\":\"egress_init_failed\"}}");
-                    std::process::exit(1);
-                }
-            }
+    pub fn init_fail_closed() {
+        let s = UnixStream::connect(SOCKET_PATH).unwrap_or_else(|_| {
+            eprintln!("{{\"event\":\"egress_init_failed\"}}");
+            std::process::exit(1);
         });
+
+        let _ = STREAM.set(Mutex::new(s));
+    }
+
+    pub fn apply(effect: AuthorizedEffect) {
+        let stream = match STREAM.get() {
+            Some(s) => s,
+            None => {
+                // Defensive: init is a boot prerequisite. If not initialized, fail-closed.
+                std::process::exit(1);
+            }
+        };
+        let mut guard = stream.lock().unwrap();
 
         // Explicit LE 32 bytes write
         let mut bytes = [0u8; 32];
@@ -286,11 +297,9 @@ mod egress {
         bytes[8..16].copy_from_slice(&effect.magnitude.to_le_bytes());
         bytes[16..32].copy_from_slice(&effect.actuation_token.to_le_bytes());
 
-        if let Some(stream) = unsafe { STREAM.as_mut() } {
-            if stream.write_all(&bytes).is_err() {
-                eprintln!("{{\"event\":\"egress_write_failed\"}}");
-                // SILENT DROP — no retry
-            }
+        if guard.write_all(&bytes).is_err() {
+            eprintln!("{{\"event\":\"egress_write_failed\"}}");
+            // SILENT DROP — no retry
         }
     }
 }
@@ -345,6 +354,10 @@ mod dashboard {
 // 6. ENTRY POINT — monotone pipeline
 // -----------------------------------------------------------------------------
 fn main() {
+    // Canon prerequisite: actuator socket must exist and be connectable at boot.
+    // Fail-closed: if socket is missing, process exits before ingress opens.
+    egress::init_fail_closed();
+
     thread::spawn(|| ingress::start());
     thread::spawn(|| dashboard::start());
 

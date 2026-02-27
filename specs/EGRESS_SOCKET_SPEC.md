@@ -46,7 +46,7 @@ typedef struct {
 } __attribute__((packed)) AuthorizedEffect;
 ```
 
-**Size:** 24 bytes  
+**Size:** 32 bytes  
 **Alignment:** Packed (no padding)  
 **Byte order:** Little-endian (x86_64 native)
 
@@ -67,7 +67,7 @@ AB-S authorizes based on domain and magnitude, not payload content.
 
 When AB-S authorizes an action:
 1. SLIME constructs `AuthorizedEffect` structure
-2. SLIME writes 24 bytes to socket (single write call)
+2. SLIME writes 32 bytes to socket (single write call)
 3. SLIME does not wait for acknowledgment
 4. SLIME continues to next action
 
@@ -140,7 +140,7 @@ The environment must:
 
 SLIME guarantees:
 - Socket exists while SLIME is running
-- Every write is exactly 24 bytes
+- Every write is exactly 32 bytes
 - Effects are written in order of authorization
 - No writes occur for impossibilities
 - Authorization token is cryptographically valid
@@ -163,14 +163,15 @@ def actuator_bridge():
     
     try:
         while True:
-            # Read exactly 24 bytes
-            data = sock.recv(24)
-            if len(data) != 24:
+            # Read exactly 32 bytes
+            data = sock.recv(32)
+            if len(data) != 32:
                 break
             
-            # Unpack AuthorizedEffect
-            domain_id, magnitude, token_low = struct.unpack('<QQQ', data)
-            # Note: token is 128-bit, only lower 64 bits shown
+            # Unpack AuthorizedEffect (little-endian)
+            # domain_id: u64, magnitude: u64, actuation_token: u128 (as two u64)
+            domain_id, magnitude, token_low, token_high = struct.unpack('<QQQQ', data)
+            token = (token_high << 64) | token_low
             
             # Perform actuation
             actuate(domain_id, magnitude)
@@ -266,7 +267,7 @@ fn actuate(effect: &AuthorizedEffect) {
 
 fn main() -> std::io::Result<()> {
     let mut stream = UnixStream::connect(SOCKET_PATH)?;
-    let mut buffer = [0u8; 24];
+    let mut buffer = [0u8; 32];
     
     loop {
         match stream.read_exact(&mut buffer) {
