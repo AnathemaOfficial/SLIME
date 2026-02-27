@@ -79,15 +79,14 @@ fn read_http_body_hardened(stream: &mut TcpStream) -> Option<Vec<u8>> {
     let preloaded = already_read.len().min(content_length);
     body.extend_from_slice(&already_read[..preloaded]);
     while body.len() < content_length {
-        let n = stream.read(&mut tmp).ok()?;
+        let remaining = content_length - body.len();
+        let chunk = remaining.min(tmp.len());
+        let n = stream.read(&mut tmp[..chunk]).ok()?;
         if n == 0 {
             return None;
         }
         body.extend_from_slice(&tmp[..n]);
 
-        if body.len() > MAX_BODY_BYTES {
-            return None;
-        }
     }
 
     Some(body)
@@ -194,10 +193,14 @@ mod egress {
 
 mod ingress {
     use super::*;
-    const AUTHORIZED_RESPONSE: &[u8] =
-        b"HTTP/1.1 200 OK\r\nContent-Length: 23\r\n\r\n{\"status\":\"AUTHORIZED\"}";
-    const IMPOSSIBLE_RESPONSE: &[u8] =
-        b"HTTP/1.1 200 OK\r\nContent-Length: 23\r\n\r\n{\"status\":\"IMPOSSIBLE\"}";
+    const AUTHORIZED_STATUS: &[u8] = b"{\"status\":\"AUTHORIZED\"}";
+    const IMPOSSIBLE_STATUS: &[u8] = b"{\"status\":\"IMPOSSIBLE\"}";
+
+    fn write_status_response(stream: &mut TcpStream, status: &[u8]) {
+        let header = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", status.len());
+        let _ = stream.write_all(header.as_bytes());
+        let _ = stream.write_all(status);
+    }
 
     pub fn start() {
         let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
@@ -214,7 +217,7 @@ mod ingress {
         let body = match crate::read_http_body_hardened(&mut stream) {
             Some(b) => b,
             None => {
-                let _ = stream.write_all(IMPOSSIBLE_RESPONSE);
+                write_status_response(&mut stream, IMPOSSIBLE_STATUS);
                 return;
             }
         };
@@ -223,7 +226,7 @@ mod ingress {
         let req = match crate::parse_request(&body) {
             Some(r) => r,
             None => {
-                let _ = stream.write_all(IMPOSSIBLE_RESPONSE);
+                write_status_response(&mut stream, IMPOSSIBLE_STATUS);
                 return;
             }
         };
@@ -237,7 +240,7 @@ mod ingress {
 
         crate::egress::apply(effect);
 
-        let _ = stream.write_all(AUTHORIZED_RESPONSE);
+        write_status_response(&mut stream, AUTHORIZED_STATUS);
     }
 
     #[cfg(test)]
@@ -257,6 +260,7 @@ mod ingress {
             });
 
             let mut client = TcpStream::connect(addr).unwrap();
+            // Invalid by schema: required fields like "magnitude" are missing.
             let _ = client.write_all(b"POST / HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}");
             let _ = client.shutdown(std::net::Shutdown::Write);
 
