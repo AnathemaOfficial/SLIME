@@ -10,6 +10,8 @@ Frame size is exactly 32 bytes:
 2. `u64` little-endian (`magnitude`)
 3. `u128` little-endian (`actuation_token`)
 
+Byte widths are fixed: `8 + 8 + 16 = 32`.
+
 There is no header, length prefix, checksum, or version byte.
 
 ## Runtime behavior

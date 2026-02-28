@@ -36,17 +36,19 @@ fn main() -> std::io::Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(mut s) => {
-                s.set_read_timeout(Some(READ_TIMEOUT))?;
+                if let Err(e) = s.set_read_timeout(Some(READ_TIMEOUT)) {
+                    eprintln!("actuator-min: set_read_timeout failed: {e}");
+                    continue;
+                }
                 let mut buf = [0u8; 32];
                 if let Err(e) = s.read_exact(&mut buf) {
-                    if e.kind() == ErrorKind::TimedOut || e.kind() == ErrorKind::WouldBlock {
+                    if matches!(e.kind(), ErrorKind::TimedOut | ErrorKind::WouldBlock) {
                         eprintln!("actuator-min: read timeout; dropping connection");
                     } else {
                         eprintln!("actuator-min: read_exact failed: {e}");
                     }
                     continue;
                 }
-                s.set_read_timeout(None)?;
                 // Hex encode 32 bytes
                 let mut hex = String::with_capacity(64);
                 for b in buf {
