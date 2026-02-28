@@ -164,13 +164,12 @@ def actuator_bridge():
     try:
         while True:
             # Read exactly 32 bytes
-            data = sock.recv(24)
-            if len(data) != 24:
+            data = sock.recv(32)
+            if len(data) != 32:
                 break
             
             # Unpack AuthorizedEffect
-            domain_id, magnitude, token_low = struct.unpack('<QQQ', data)
-            # Note: token is 128-bit, only lower 64 bits shown
+            domain_id, magnitude, token = struct.unpack('<QQ16s', data)
             
             # Perform actuation
             actuate(domain_id, magnitude)
@@ -266,13 +265,17 @@ fn actuate(effect: &AuthorizedEffect) {
 
 fn main() -> std::io::Result<()> {
     let mut stream = UnixStream::connect(SOCKET_PATH)?;
-    let mut buffer = [0u8; 24];
+    let mut buffer = [0u8; 32];
     
     loop {
         match stream.read_exact(&mut buffer) {
             Ok(_) => {
-                let effect = unsafe {
-                    std::ptr::read(buffer.as_ptr() as *const AuthorizedEffect)
+                let mut token_bytes = [0u8; 16];
+                token_bytes.copy_from_slice(&buffer[16..32]);
+                let effect = AuthorizedEffect {
+                    domain_id: u64::from_le_bytes(buffer[0..8].try_into().unwrap()),
+                    magnitude: u64::from_le_bytes(buffer[8..16].try_into().unwrap()),
+                    actuation_token: u128::from_le_bytes(token_bytes),
                 };
                 actuate(&effect);
             }
