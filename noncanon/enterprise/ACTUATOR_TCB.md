@@ -1,0 +1,251 @@
+# SLIME v0 — Actuator as Trusted Computing Base
+
+**Status:** Noncanon (enterprise integration guidance)
+**Authority:** This document does not modify canon. Specs/ remains sole authority for SLIME law.
+
+---
+
+## Problem Statement
+
+SLIME guarantees structural impossibility at the verdict layer:
+- Binary verdict (AUTHORIZED or silence)
+- Fixed 32-byte ABI
+- Fail-closed
+- No feedback
+- Unidirectional egress
+
+**But SLIME does not guarantee the integrity of what executes after the verdict.**
+
+The actuator — the component that reads 32-byte frames and maps them to real-world effects — becomes the **Trusted Computing Base (TCB)** of the execution chain.
+
+If the actuator is:
+- Compromised (binary replaced)
+- Confused (domain_id collision)
+- Replayed (same frame injected twice)
+- Overprivileged (excessive system access)
+
+...then the SLIME law is bypassed at the point of effect, regardless of how pure the verdict layer is.
+
+---
+
+## FirePlank-Guard: Continuity Floor for the Actuator
+
+FirePlank in SYF-Core is a **continuity constraint** — a structural floor that prevents total system collapse without introducing recovery, reward, or bypass.
+
+Applied to the actuator, FirePlank becomes an **integrity floor**: a set of non-negotiable checks that ensure the actuator cannot act outside its defined envelope.
+
+**FirePlank-Guard is not:**
+- A policy engine
+- A permission system
+- A filter or proxy
+- A feedback channel
+- A debug interface
+
+**FirePlank-Guard is:**
+- A boot-time integrity check
+- A replay prevention floor
+- A domain collision guard
+- A privilege reduction boundary
+
+---
+
+## The Four Roles of FirePlank-Guard
+
+### FP-1: Integrity Floor (Boot Verification)
+
+Before the actuator starts, verify its identity:
+
+```
+sha256(actuator-binary) == SEALED_HASH
+sha256(domain-registry) == SEALED_REGISTRY_HASH
+socket permissions == 0660
+socket owner == actuator:slime-actuator
+```
+
+**If any mismatch:** actuator does not start. Fail-closed.
+
+This addresses the **toolchain compromise** risk identified in V1_INVARIANTS (explicitly out of SLIME's threat model, but within FirePlank-Guard's scope).
+
+**Implementation:**
+
+Sealed hashes live in a **read-only file**, not in the script itself.
+If the script contained the hashes, an attacker who modifies the script could also change the expected values.
+
+**Seal file:** `/usr/lib/slime/fireplank.seal` (owned by root, permissions `0444`)
+```
+# fireplank.seal — generated at deploy time, read-only after installation
+ACTUATOR_BIN_HASH=<sha256-of-actuator-binary>
+DOMAIN_REG_HASH=<sha256-of-domain-registry>
+```
+
+**Guard script:**
+```bash
+#!/bin/sh
+# fireplank-guard-boot.sh — run as ExecStartPre in actuator.service
+
+SEAL_FILE="/usr/lib/slime/fireplank.seal"
+
+# Seal file must exist and be readable
+if [ ! -r "$SEAL_FILE" ]; then
+    echo "FIREPLANK: seal file missing or unreadable" >&2
+    exit 1
+fi
+
+. "$SEAL_FILE"
+
+ACTUAL_BIN_HASH=$(sha256sum /usr/local/bin/actuator-min | cut -d' ' -f1)
+ACTUAL_REG_HASH=$(sha256sum /etc/slime/domain-registry.json | cut -d' ' -f1)
+
+if [ "$ACTUAL_BIN_HASH" != "$ACTUATOR_BIN_HASH" ]; then
+    echo "FIREPLANK: actuator binary integrity FAILED" >&2
+    exit 1
+fi
+
+if [ "$ACTUAL_REG_HASH" != "$DOMAIN_REG_HASH" ]; then
+    echo "FIREPLANK: domain registry integrity FAILED" >&2
+    exit 1
+fi
+
+echo "FIREPLANK: integrity OK"
+```
+
+**Note:** The seal file is generated once at deploy time and must not be modified in production. If either the binary or registry changes, a new seal file must be generated and deployed (full redeploy cycle).
+
+### FP-2: Replay Floor (Anti-Injection)
+
+Prevent the same 32-byte frame from being executed twice:
+
+- Actuator maintains an **append-only journal** of seen `actuation_token` values (journal must be fsync-safe or crash-consistent; a crash must not re-authorize a previously seen token)
+- If a token has been seen before: **drop** (no execution, no feedback)
+- If the journal is unavailable or corrupted: **actuator enters sealed state** — no frames are executed, no new effects are produced, until the journal is restored and the actuator is restarted
+
+**Properties:**
+- No feedback to SLIME (unidirectional preserved)
+- No modification to the 32-byte ABI
+- Journal is local to the actuator, invisible to SLIME
+- Monotonic counter alternative: if token scheme evolves to include sequence numbers
+- Journal loss = full stop, not degraded operation
+
+**Note:** This does not modify SLIME. The anti-replay lives entirely within the actuator's execution boundary.
+
+### FP-3: Domain Collision Floor (Registry Verification)
+
+Canon normalizes domains via `hash64(domain) & 0xFFFFFFFF` (32-bit mask).
+This creates a non-negligible collision probability at scale.
+
+FirePlank-Guard mitigates this:
+
+- **Sealed domain registry:** static mapping `domain_id → action_name`, verified at boot
+- **Collision check at boot:** if any two distinct domains produce the same `domain_id`, abort
+- **No dynamic registration:** registry is immutable after deployment; changes require full redeploy (new hash, new seal, new boot verification)
+
+```json
+{
+  "domains": [
+    {"name": "payments", "domain_id": 2847391045, "action": "process_payment"},
+    {"name": "deploy",   "domain_id": 1938274610, "action": "trigger_deploy"}
+  ]
+}
+```
+
+**Boot check:** iterate all pairs, verify no `domain_id` collision. If collision detected: fail-closed, actuator does not start.
+
+### FP-4: Privilege Reduction (Sandboxed Execution)
+
+The actuator runs with **minimal privileges**, reducing the blast radius if compromised:
+
+```ini
+# In actuator.service (systemd hardening)
+[Service]
+User=actuator
+Group=slime-actuator
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+SystemCallFilter=@system-service
+MemoryDenyWriteExecute=yes
+```
+
+**Key restrictions:**
+- `AF_UNIX` only — no network access
+- No new privileges — cannot escalate
+- Read-only filesystem — cannot modify binaries
+- Private /tmp — no cross-service data leaks
+
+---
+
+## FirePlank-Guard Invariants
+
+| ID | Invariant | Violation Response |
+|---|---|---|
+| FP-I1 | Actuator binary hash matches sealed value | Abort (fail-closed) |
+| FP-I2 | Domain registry hash matches sealed value | Abort (fail-closed) |
+| FP-I3 | No domain_id collision exists in registry | Abort (fail-closed) |
+| FP-I4 | No actuation_token is executed twice | Drop frame (silent) |
+| FP-I5 | Journal integrity is verifiable | Actuator enters sealed state (no execution until restored + restarted) |
+| FP-I6 | Actuator runs with minimal privileges | Enforced by systemd |
+
+---
+
+## What FirePlank-Guard Does NOT Do
+
+- **Does not interpret frames** — it checks integrity, not semantics
+- **Does not add reason codes** — silence is the only denial
+- **Does not provide feedback to SLIME** — unidirectional preserved
+- **Does not add configuration** — hashes are sealed at deployment
+- **Does not add bypass** — not even for debug
+- **Does not modify the 32-byte ABI** — frames pass through untouched
+- **Does not become a policy engine** — it is a floor, not a decision maker
+
+---
+
+## Architecture Placement
+
+```
+SLIME (law-layer)
+    │
+    │  32-byte frame (egress.sock)
+    ↓
+FirePlank-Guard
+    │  ├── FP-1: binary integrity check (boot)
+    │  ├── FP-2: replay check (runtime)
+    │  ├── FP-3: collision check (boot)
+    │  └── FP-4: privilege boundary (systemd)
+    ↓
+Actuator (mechanical execution)
+    │
+    ↓
+Real-world effect
+```
+
+**Critical:** FirePlank-Guard lives **outside** SLIME. It wraps the actuator, not the law.
+
+---
+
+## Relationship to SYF-Core FirePlank
+
+In SYF-Core, FirePlank is defined as:
+
+> A mathematical continuity constraint that prevents total system collapse
+> by maintaining a minimum coherence threshold without introducing recovery,
+> reward, or beneficiary.
+
+Applied here:
+- **Continuity** = actuator integrity is preserved across restarts
+- **No recovery** = if integrity fails, system stops (no self-heal)
+- **No beneficiary** = no component gains power from the check
+- **Minimum threshold** = the hash either matches or it doesn't (binary)
+
+This is FirePlank applied to the execution boundary — the same principle, different substrate.
+
+---
+
+**END — ACTUATOR TCB / FIREPLANK-GUARD**
