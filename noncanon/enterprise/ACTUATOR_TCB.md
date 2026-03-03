@@ -248,4 +248,133 @@ This is FirePlank applied to the execution boundary — the same principle, diff
 
 ---
 
+## Payload Correlation (Actuator Responsibility)
+
+### The Problem
+
+The 32-byte `AuthorizedEffect` frame contains only:
+- `domain_id` (u64)
+- `magnitude` (u64)
+- `actuation_token` (u128)
+
+**Payload data is not in the frame.** Canon spec (INGRESS_API_SPEC) accepts a `payload` field (base64, up to 64KB), but SLIME does not pass it through egress. The 32-byte ABI is fixed.
+
+This creates a **correlation problem**: when the actuator receives a frame, how does it know which payload belongs to that effect?
+
+### Why This Matters
+
+If 10 actions arrive concurrently, SLIME authorizes 7, and 7 frames appear on egress:
+- Two frames may share the same `domain_id` and `magnitude` (same domain, same amount)
+- The actuator must know which original payload goes with which frame
+- **Wrong correlation = wrong actuation** (right authorization, wrong data)
+
+This is a real attack surface: an adversary who controls ingress timing could attempt to cause payload-effect mismatch.
+
+### Correlation Strategies
+
+The actuator bridge must choose **one** of these strategies. The choice is environment-specific and outside SLIME's scope.
+
+#### Strategy A: Stateless (No Payload Needed)
+
+If actuation depends only on `domain_id` + `magnitude`, no correlation is needed.
+
+```
+Effect = f(domain_id, magnitude)
+```
+
+This is the simplest and most SYF-aligned model. The payload is used only for logging/auditing at the ingress layer and never reaches the actuator.
+
+**Best for:** IoT commands, circuit breakers, deployment triggers, binary operations.
+
+#### Strategy B: Token-Keyed Correlation
+
+Use `actuation_token` as a correlation key:
+
+```
+Ingress layer:
+  1. Receive action (domain, magnitude, payload)
+  2. Forward to SLIME
+  3. Store payload in a correlation table: token → payload
+     (token is known after SLIME authorizes, if the ingress proxy
+      can observe egress, or if AB-S makes the token predictable
+      from action inputs)
+
+Actuator:
+  1. Receive frame (domain_id, magnitude, token)
+  2. Lookup token in correlation table → retrieve payload
+  3. If no match → actuation without payload (or fail-closed)
+```
+
+**Challenge:** The token is only visible on the egress stream. The ingress layer does not know the token at request time. This requires either:
+- The ingress proxy observes the egress stream (side-channel) to learn the token after authorization
+- AB-S generates tokens deterministically from inputs (which makes them predictable — security tradeoff)
+- A shared-memory correlation store between ingress proxy and actuator bridge (adds complexity)
+
+**Best for:** Systems that need payload but can accept the complexity.
+
+#### Strategy C: Ordered FIFO Correlation
+
+Since SLIME writes effects in authorization order (FIFO), the actuator bridge can correlate by position:
+
+```
+Ingress proxy:
+  1. Queue: action₁, action₂, action₃ → SLIME
+  2. SLIME authorizes action₁ and action₃ (action₂ = IMPOSSIBLE)
+  3. Proxy knows: effect₁ = action₁, effect₂ = action₃
+
+Actuator:
+  1. Read frame₁ → correlates to action₁'s payload
+  2. Read frame₂ → correlates to action₃'s payload
+```
+
+**Challenge:** Strategy C only works in strictly serialized pipelines: single ingress stream, strict serialization, no retries, no parallel clients. Concurrent ingress invalidates the correlation entirely. The ingress proxy must track which actions were authorized (it sees the HTTP response) and maintain an ordered queue that the actuator bridge consumes in lockstep.
+
+**Best for:** Batch/sequential processing, single-client systems. Not suitable for concurrent environments.
+
+#### Strategy D: Domain Encodes Payload Reference
+
+Encode a payload reference into the domain string itself:
+
+```
+Instead of: domain="payments", payload={...}
+Use:        domain="payments:tx:abc123", payload={...}
+
+The domain_id hash encodes the correlation.
+The actuator resolves "payments:tx:abc123" from its own store.
+```
+
+**Challenge:** domain_id is a hash — the actuator needs a reverse mapping. The domain registry must be dynamic or comprehensive. This conflicts with sealed registries.
+
+**Best for:** Systems where domains naturally carry identity.
+
+### Recommended Default
+
+**Strategy A (Stateless)** unless the use case specifically requires payload at the actuation layer.
+
+Rationale:
+- Eliminates the correlation problem entirely
+- No new TCB surface
+- Most aligned with SLIME's "minimal surface" philosophy
+- If payload is needed, it belongs in a separate channel managed by the environment
+
+### What SLIME Does NOT Do (Payload)
+
+- **Does not forward payload through egress** — 32-byte ABI is fixed
+- **Does not correlate payload to effect** — environment's responsibility
+- **Does not guarantee payload integrity** — validation is actuator's job
+- **Does not buffer payload** — SLIME is stateless
+
+### Security Implications
+
+| Threat | Mitigation |
+|---|---|
+| Payload substitution (swap payload between concurrent actions) | Strategy A eliminates this; Strategy B uses token as key |
+| Payload replay (reuse old payload with new authorization) | FirePlank-Guard FP-I4 prevents token reuse |
+| Payload injection (forge payload for valid frame) | Actuator must validate payload independently |
+| Correlation desync (FIFO ordering lost) | Strategy C requires single-writer; Strategies A/B are order-independent |
+
+**Canonical position:** Payload correlation is the actuator's problem. SLIME provides the authorization signal; the actuator provides the execution context.
+
+---
+
 **END — ACTUATOR TCB / FIREPLANK-GUARD**
