@@ -377,4 +377,60 @@ Rationale:
 
 ---
 
+## V1 Evolution: Channel Authenticity
+
+### The Remaining Gap
+
+FirePlank-Guard establishes **integrity** (binary not tampered, registry not modified, tokens not replayed). But integrity is not **authenticity**.
+
+The current v0 model relies on Unix filesystem permissions (`0660`, `actuator:slime-actuator`) to restrict who can write to the egress socket. This is sufficient when the OS permission model holds. However:
+
+- A process running in the correct user/group context can write arbitrary frames
+- Unix sockets do not authenticate the logical identity of the sender
+- If an attacker achieves code execution within the permitted context (without modifying binaries), they can forge frames that pass all v0 checks
+
+**This is not a v0 bug** — the spec explicitly states "No Authentication beyond Unix permissions." It is a **known boundary** of the v0 threat model.
+
+### V1 Path: MAC-Authenticated Frames
+
+The natural evolution is to make each 32-byte frame **cryptographically authenticable**:
+
+```
+V0:  [domain_id: u64] [magnitude: u64] [actuation_token: u128]
+     └── token is opaque metadata, not a proof of origin
+
+V1:  [domain_id: u64] [magnitude: u64] [mac: u128]
+     └── mac = HMAC-SHA256(key, domain_id || magnitude) truncated to 128 bits
+     └── key is sealed at deploy time, known only to SLIME + effecteur
+```
+
+**Properties:**
+- Frame size remains 32 bytes (ABI preserved)
+- `actuation_token` field is repurposed as a MAC (no semantic change to the ABI structure)
+- Key is sealed in a deploy-time secret (similar to `fireplank.seal`, but for a symmetric key)
+- Effecteur verifies MAC before execution; invalid MAC = silent drop
+- Anti-replay moves from token journal to MAC + monotonic nonce (if needed)
+
+### What V1 Channel Authenticity Does NOT Do
+
+- **Does not change the 32-byte ABI** — same wire format
+- **Does not add feedback** — invalid MAC = silence
+- **Does not add configuration** — key is sealed at deploy time
+- **Does not replace FirePlank-Guard** — integrity + authenticity are complementary
+- **Does not modify canon v0** — this is an evolution path, not a correction
+
+### Relationship to FirePlank-Guard
+
+| Layer | V0 | V1 |
+|---|---|---|
+| **Binary integrity** | FP-1 (hash check) | FP-1 (unchanged) |
+| **Replay prevention** | FP-2 (token journal) | FP-2 (MAC + nonce) |
+| **Domain collision** | FP-3 (boot check) | FP-3 (unchanged) |
+| **Privilege sandbox** | FP-4 (systemd) | FP-4 (unchanged) |
+| **Channel authenticity** | Unix permissions only | HMAC-SHA256 sealed key |
+
+**FirePlank does not replace crypto. Crypto does not replace FirePlank. They compose.**
+
+---
+
 **END — ACTUATOR TCB / FIREPLANK-GUARD**

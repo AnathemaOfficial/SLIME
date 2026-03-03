@@ -158,6 +158,53 @@ No runtime configuration. No dynamic registration. No exceptions.
 
 ---
 
+## Primitive Design Guidelines
+
+SLIME-2 constrains the actuator to authorized primitives. But if a primitive is too powerful, the authorized space itself contains danger. The lifeguard cannot protect swimmers from a pool filled with acid — even if no unauthorized person enters.
+
+### The Risk: Meta-Primitives
+
+A primitive like `"execute_script"` or `"call_api"` is a **meta-power**: it encodes an unbounded action space within a single authorized domain. An attacker who stays within authorized bounds can still produce catastrophic effects.
+
+**Bad primitives** (meta-powers):
+```
+"write_db"         →  can write anything to any table
+"execute_script"   →  can run arbitrary code
+"call_api"         →  can reach any external endpoint
+"send_message"     →  can send to any recipient with any content
+```
+
+**Good primitives** (atomic, bounded):
+```
+"open_valve_A"     →  opens one specific valve, magnitude = duration
+"close_valve_A"    →  closes one specific valve
+"deploy_service_X" →  deploys one specific service (magnitude = version tag)
+"process_payment"  →  processes payment in domain "payments", magnitude = amount in cents
+```
+
+### Design Rules for Primitives
+
+1. **Atomic** — each primitive does exactly one thing. No composition, no branching.
+2. **Non-escalating** — no primitive can be used to gain capabilities beyond its own scope.
+3. **Magnitude-bounded** — `magnitude` must have a hard ceiling sealed at compile time. A primitive with `max_magnitude = u64::MAX` is effectively unbounded.
+4. **Domain-specific** — the primitive name encodes the target, not just the verb. `"open_valve_A"` not `"open_valve"`.
+5. **No indirection** — primitives must not accept references to other resources (file paths, URLs, query strings). The primitive **is** the resource.
+
+### Primitive Power Audit
+
+Before sealing SLIME-2's law, audit each primitive:
+
+| Question | If "yes" → |
+|---|---|
+| Can this primitive affect resources outside its stated scope? | Split into per-resource primitives |
+| Can magnitude encode an unbounded action? | Add hard ceiling, or split by magnitude range |
+| Can two authorized primitives compose into an unauthorized effect? | Add cross-domain invariant or split further |
+| Would an attacker with unlimited calls to this primitive (but nothing else) cause damage? | Reduce scope or add rate invariant to magnitude |
+
+**Canonical position:** SLIME-2 enforces the law. The deployer defines the law. If the law is too permissive, SLIME-2 faithfully enforces a permissive law. Primitive design is the deployer's responsibility; SLIME-2 provides the enforcement substrate.
+
+---
+
 ## What SLIME-2 Does NOT Do
 
 - **Does not parse ingress** — it only sees what the gateway forwards
