@@ -51,7 +51,7 @@ The following divergences are **intentional** and expected in the noncanon harne
 
 The slime-runner harness demonstrates the **form** of SLIME (binary verdict, 32-byte egress, fail-closed) but not the **law** (sealed compile-time invariant, full ABI compliance, payload validation).
 
-**Deploying the runner as if it were a production SLIME instance is a governance failure, not a technical one.** The runner:
+**Deploying the runner as if it were a production SLIME instance is an operator failure, not a technical one.** The runner:
 
 - Has no sealed AB-S core (stub function, not compile-time law)
 - Ignores payload entirely (no validation, no size check)

@@ -82,7 +82,7 @@ The predicate I is:
 
 No runtime function modifies I.
 
-All governance exists only at invariant genesis.
+All human authority exists only at invariant genesis.
 
 ---
 
@@ -122,7 +122,7 @@ SLIME does not define:
 - policy engines
 - adaptive control
 - behavioral alignment
-- governance frameworks
+- process frameworks
 
 SLIME defines only the mapping:
 

@@ -79,7 +79,7 @@ It does not exist.
 
 ---
 
-## No Policy. No Governance. No Moral Layer.
+## No Policy. No Runtime Control. No Moral Layer.
 
 SLIME does not allow or forbid.
 
@@ -144,12 +144,12 @@ Development happens around it — never inside it.
 
 ---
 
-## Governance Model
+## Invariant Genesis Model
 
-Governance exists only at invariant genesis.
+Human control exists only at invariant genesis.
 
 SLIME does not eliminate design choice.
-It eliminates runtime governance.
+It eliminates runtime control.
 
 Once sealed, the invariant is not negotiable, tunable, or adaptable.
 

@@ -107,7 +107,7 @@ SLIME applies AB-S verdicts without negotiation:
 ## Non-Goals (v0)
 
 SLIME v0 must not include:
-- policy engines or governance logic
+- policy engines or runtime control logic
 - configuration modes
 - adaptive thresholds or calibration
 - retries / fallbacks / simulated success

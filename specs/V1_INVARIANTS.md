@@ -213,7 +213,7 @@ No feedback channel from actuator to Core SHALL exist.
 
 SLIME v1 SHALL NOT:
 
-- Act as a governance engine.
+- Act as an interpretive control layer.
 - Load policies dynamically.
 - Support runtime CoreSpec switching.
 - Provide rule editing.
@@ -251,7 +251,7 @@ If compile-time specialization cannot be implemented without:
 
 Any orchestration mechanism for multi-binary SLIME deployments
 (binary registry, deployment manifest, multi-CoreSpec coordination)
-MUST be treated as a potential governance reentry point.
+MUST be treated as a potential runtime control reentry point.
 
 Such mechanisms MUST be reviewed against the full v0 + v1 invariant set
 before Phase 2 locks.
@@ -273,7 +273,7 @@ requires Core modification, it is rejected.
 | Timing claims bounded, not constant-time | R-06 | Satisfied |
 | Existential guard clause present | R-07 | Satisfied |
 | Build toolchain assumption stated | R-08 | Satisfied |
-| Phase 2 governance reentry flag added | R-09 | Satisfied |
+| Phase 2 runtime-control reentry flag added | R-09 | Satisfied |
 
 ---
 

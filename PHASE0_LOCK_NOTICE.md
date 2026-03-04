@@ -47,7 +47,7 @@ No structural contradictions remain.
 
 ## Boundary of Responsibility
 
-Build toolchain integrity and deployment governance are explicitly outside Core threat model.
+Build toolchain integrity and deployment discipline are explicitly outside Core threat model.
 
 If compile-time specialization requires runtime mutation or oracle authority, SLIME v1 SHALL NOT proceed.
 

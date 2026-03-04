@@ -26,7 +26,7 @@ SLIME does not prevent harm.
 SLIME removes the representability of certain effects.
 
 Any interpretation of SLIME as a behavioral, ethical, probabilistic,
-or governance-based system is incorrect.
+or any process-layer control system is incorrect.
 
 ---
 
