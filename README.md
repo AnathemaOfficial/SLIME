@@ -47,9 +47,14 @@ SLIME is part of a broader invariant-driven architecture:
 - SYF-Core (mathematical invariant layer) https://github.com/AnathemaOfficial/SYF-Core
 - SYF-Minimal (minimal canonical invariant spec) https://github.com/AnathemaOfficial/SYF-Minimal
 - SYF-Lab (experimental environment) https://github.com/AnathemaOfficial/SYF-Lab
+- SYF-Gate (admission verdict) https://github.com/AnathemaOfficial/SYF-Gate
+- SYF-Shield (irreversibility + capacity) https://github.com/AnathemaOfficial/SYF-Shield
+- Anathema-Breaker (law composition) https://github.com/AnathemaOfficial/Anathema-Breaker
 
 These are not extensions of SLIME,
 but parallel primitives built around invariant enforcement.
+
+See `FULL_STACK_CONFORMANCE.md` for cross-layer integration rules (Gate / Shield / AB / SLIME / Actuator).
 
 ---
 
