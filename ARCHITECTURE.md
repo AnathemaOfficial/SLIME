@@ -1,10 +1,7 @@
 ---
-
-# SLIME v0 — Architecture
-
-**Status:** CANON / IMPLEMENTATION FRAME  
-**Scope:** v0 only (minimal, deployable, non-negotiable)
-
+title: "SLIME v0 — Architecture"
+status: "CANON / IMPLEMENTATION FRAME"
+scope: "v0 only (minimal, deployable, non-negotiable)"
 ---
 
 ## Overview
