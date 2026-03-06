@@ -9,10 +9,13 @@ User=actuator
 Group=slime-actuator
 RuntimeDirectory=slime
 RuntimeDirectoryMode=0755
-ExecStartPre=/bin/sh -lc 'rm -f /run/slime/egress.sock'
+ExecStartPre=/bin/sh -c 'rm -f /run/slime/egress.sock'
+ExecStartPre=/usr/local/bin/fireplank-guard-boot.sh
 ExecStart=/usr/local/bin/actuator-min
 Restart=no
 NoNewPrivileges=yes
+StandardOutput=append:/var/log/slime-actuator/events.log
+StandardError=append:/var/log/slime-actuator/events.log
 
 [Install]
 WantedBy=multi-user.target
