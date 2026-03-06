@@ -5,16 +5,41 @@ use std::process;
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
+// AB-S real engine
+use anathema_breaker_core::pom::topology::Action as AbAction;
+use anathema_breaker_core::pom::topology::RZ;
+use anathema_breaker_core::pom::types::{Budget, Capacity, Domain, Magnitude, Progression};
+use anathema_breaker_core::pom::resolve_action::resolve_action;
+
 //
 // -------------------- Hardening Constants (Phase 2) --------------------
 //
 
-const MAX_HEADER_BYTES: usize = 8 * 1024; // 8KB
-const MAX_BODY_BYTES: usize = 64 * 1024; // 64KB
+const MAX_HEADER_BYTES: usize = 8 * 1024;
+const MAX_BODY_BYTES: usize = 64 * 1024;
 const READ_TIMEOUT_SECS: u64 = 2;
 
-// -------------------- Types --------------------
 //
+// -------------------- CoreSpec Constants (Phase 6.3) --------------------
+// Compile-time law. No runtime configuration. No env vars.
+// Change these constants = produce a different binary = different CoreSpec.
+//
+
+/// Domain mapping table — sealed at compile time.
+/// Unknown domains are structurally impossible.
+const DOMAIN_TABLE: &[(&str, u16)] = &[
+    ("test", 0),
+    ("payment", 1),
+    ("deploy", 2),
+    ("db_prod", 3),
+];
+
+/// Budget constants — fresh budget per request (V1 statelessness).
+/// No state persists between requests.
+const CORESPEC_CAPACITY: u32 = 10_000;
+const CORESPEC_PROGRESSION: u32 = 1;
+
+// -------------------- Types --------------------
 
 #[derive(Clone, Copy)]
 struct AuthorizedEffect {
@@ -24,8 +49,26 @@ struct AuthorizedEffect {
 }
 
 struct ActionRequest {
-    domain_id: u64,
+    domain: [u8; 64],
+    domain_len: usize,
     magnitude: u64,
+}
+
+//
+// -------------------- Domain Resolution (Phase 6.3) --------------------
+//
+
+fn resolve_domain(name: &str) -> Option<Domain> {
+    for &(key, id) in DOMAIN_TABLE {
+        if key == name {
+            return Some(Domain(id));
+        }
+    }
+    None
+}
+
+fn domain_to_egress_id(d: Domain) -> u64 {
+    d.0 as u64
 }
 
 //
@@ -33,13 +76,11 @@ struct ActionRequest {
 //
 
 fn read_http_body_hardened(stream: &mut TcpStream) -> Option<Vec<u8>> {
-    // Slow-loris defense: bounded read time
     let _ = stream.set_read_timeout(Some(Duration::from_secs(READ_TIMEOUT_SECS)));
 
     let mut buf = Vec::<u8>::new();
     let mut tmp = [0u8; 1024];
 
-    // 1) Read headers up to MAX_HEADER_BYTES, stop at \r\n\r\n
     let mut header_end = None;
     while buf.len() < MAX_HEADER_BYTES {
         let n = stream.read(&mut tmp).ok()?;
@@ -47,21 +88,17 @@ fn read_http_body_hardened(stream: &mut TcpStream) -> Option<Vec<u8>> {
             return None;
         }
         buf.extend_from_slice(&tmp[..n]);
-
-        // Detect end of headers
         if let Some(pos) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
             header_end = Some(pos + 4);
             break;
         }
     }
 
-    // Header too big or never terminated
     let header_end = header_end?;
     if header_end >= MAX_HEADER_BYTES {
         return None;
     }
 
-    // 2) Parse Content-Length (required)
     let header_text = std::str::from_utf8(&buf[..header_end]).ok()?;
     let content_length = header_text
         .lines()
@@ -73,7 +110,6 @@ fn read_http_body_hardened(stream: &mut TcpStream) -> Option<Vec<u8>> {
         return None;
     }
 
-    // 3) Read exactly content_length bytes of body
     let mut body = Vec::with_capacity(content_length);
     let already_read = &buf[header_end..];
     let preloaded = already_read.len().min(content_length);
@@ -86,22 +122,20 @@ fn read_http_body_hardened(stream: &mut TcpStream) -> Option<Vec<u8>> {
             return None;
         }
         body.extend_from_slice(&tmp[..n]);
-
     }
 
     Some(body)
 }
 
 //
-// -------------------- Request Parse (Dummy) --------------------
+// -------------------- Request Parse --------------------
 //
 
 fn parse_request(body: &[u8]) -> Option<ActionRequest> {
     let text = std::str::from_utf8(body).ok()?;
 
-    // extremely dumb parse (dummy)
-    // expects something like: {"domain":"test","magnitude":10,...}
-    let domain = if let Some(p) = text.find("\"domain\"") {
+    let domain_str = {
+        let p = text.find("\"domain\"")?;
         let s = &text[p..];
         let q1 = s.find('"')?;
         let s2 = &s[q1 + 1..];
@@ -111,37 +145,28 @@ fn parse_request(body: &[u8]) -> Option<ActionRequest> {
         let s4 = &s3[q3 + 1..];
         let q4 = s4.find('"')?;
         &s4[..q4]
-    } else {
-        "test"
     };
 
-    let magnitude = if let Some(p) = text.find("\"magnitude\":") {
+    let magnitude = {
+        let p = text.find("\"magnitude\":")?;
         let s = &text[p + 12..];
         s.trim_start()
             .chars()
             .take_while(|c| c.is_ascii_digit())
             .collect::<String>()
             .parse::<u64>()
-            .unwrap_or(0)
-    } else {
-        return None;
+            .ok()?
     };
 
-    let domain_id = fnv1a_64(domain.as_bytes());
+    let mut domain = [0u8; 64];
+    let domain_len = domain_str.len().min(64);
+    domain[..domain_len].copy_from_slice(&domain_str.as_bytes()[..domain_len]);
 
     Some(ActionRequest {
-        domain_id,
+        domain,
+        domain_len,
         magnitude,
     })
-}
-
-fn fnv1a_64(data: &[u8]) -> u64 {
-    let mut hash: u64 = 0xcbf29ce484222325;
-    for b in data {
-        hash ^= *b as u64;
-        hash = hash.wrapping_mul(0x100000001b3);
-    }
-    hash
 }
 
 //
@@ -151,44 +176,31 @@ fn fnv1a_64(data: &[u8]) -> u64 {
 mod egress {
     use super::*;
 
-    // Canonical, non-configurable path (SLIME v0)
     const SOCKET_PATH: &str = "/run/slime/egress.sock";
-
-    // Store a single connected stream for the process lifetime.
-    // - Boot-time: connect must succeed or SLIME terminates (fail-closed hard)
-    // - Runtime: write failures are dropped silently (best-effort)
     static STREAM: OnceLock<Mutex<UnixStream>> = OnceLock::new();
 
     pub fn init_fail_closed() {
         let s = UnixStream::connect(SOCKET_PATH).unwrap_or_else(|_| {
-            // No logs, no retries: if SLIME cannot actuate, it must not run.
             process::exit(1);
         });
-
         let _ = STREAM.set(Mutex::new(s));
     }
 
     pub fn apply(effect: AuthorizedEffect) {
         let stream = STREAM.get();
         if stream.is_none() {
-            // Defensive: init is a boot prerequisite. If not initialized, fail-closed.
             process::exit(1);
         }
         let mut guard = stream.unwrap().lock().unwrap();
 
-        // Serialize exact 32 bytes (LE): u64 + u64 + u128
         let mut buf = [0u8; 32];
         buf[0..8].copy_from_slice(&effect.domain_id.to_le_bytes());
         buf[8..16].copy_from_slice(&effect.magnitude.to_le_bytes());
         buf[16..32].copy_from_slice(&effect.actuation_token.to_le_bytes());
 
-        // Best-effort write. Any error is a silent drop (no feedback channel).
-        // Write must succeed. If it fails, reconnect once, then fail-closed.
         if guard.write_all(&buf).is_err() {
-            // Replace the broken stream with a fresh connection.
             let s = UnixStream::connect(SOCKET_PATH).unwrap_or_else(|_| process::exit(1));
             *guard = s;
-
             if guard.write_all(&buf).is_err() {
                 process::exit(1);
             }
@@ -197,7 +209,7 @@ mod egress {
 }
 
 //
-// -------------------- Ingress (Dummy HTTP, Hardened + RL gate) --------------------
+// -------------------- Ingress --------------------
 //
 
 mod ingress {
@@ -213,7 +225,6 @@ mod ingress {
 
     pub fn start() {
         let listener = TcpListener::bind("127.0.0.1:8080").unwrap();
-
         for conn in listener.incoming() {
             if let Ok(stream) = conn {
                 handle(stream);
@@ -222,7 +233,6 @@ mod ingress {
     }
 
     fn handle(mut stream: TcpStream) {
-        // Hardened read: headers capped, body capped, timeout enforced, Content-Length required
         let body = match crate::read_http_body_hardened(&mut stream) {
             Some(b) => b,
             None => {
@@ -230,7 +240,7 @@ mod ingress {
                 return;
             }
         };
-        // parse
+
         let req = match crate::parse_request(&body) {
             Some(r) => r,
             None => {
@@ -238,22 +248,49 @@ mod ingress {
                 return;
             }
         };
-        // decision (NONCANON mini AB-S):
-        // authorize only if (domain == "test") and magnitude > 0
 
-        if req.domain_id == fnv1a_64(b"test") && req.magnitude > 0 {
-            let effect = AuthorizedEffect {
-                domain_id: req.domain_id,
-                magnitude: req.magnitude,
-                actuation_token: 0xABCD_EF01_2345_6789_ABCD_EF01_2345_6789u128,
-            };
+        // -- AB-S Resolution (Phase 6.3) ---------------------------------
+        //
+        // 1. Resolve domain via sealed compile-time table
+        let domain_str = std::str::from_utf8(&req.domain[..req.domain_len]).unwrap_or("");
+        let domain = match crate::resolve_domain(domain_str) {
+            Some(d) => d,
+            None => {
+                write_status_response(&mut stream, IMPOSSIBLE_STATUS);
+                return;
+            }
+        };
 
-            crate::egress::apply(effect);
-            write_status_response(&mut stream, AUTHORIZED_STATUS);
-        } else {
+        // 2. Validate magnitude fits u32 (AB-S uses Magnitude(u32))
+        if req.magnitude == 0 || req.magnitude > u32::MAX as u64 {
             write_status_response(&mut stream, IMPOSSIBLE_STATUS);
-}
-}
+            return;
+        }
+        let magnitude = Magnitude(req.magnitude as u32);
+
+        // 3. Fresh budget per request (V1 statelessness)
+        let mut budget = Budget {
+            capacity: Capacity(CORESPEC_CAPACITY),
+            progression: Progression(CORESPEC_PROGRESSION),
+        };
+
+        // 4. Build Action<RZ> and resolve through AB-S
+        let action = AbAction::<RZ>::new(domain, magnitude);
+        match resolve_action(action, &mut budget) {
+            Ok(effect) => {
+                let authorized = AuthorizedEffect {
+                    domain_id: crate::domain_to_egress_id(domain),
+                    magnitude: effect.magnitude_applied.0 as u64,
+                    actuation_token: 0u128,
+                };
+                crate::egress::apply(authorized);
+                write_status_response(&mut stream, AUTHORIZED_STATUS);
+            }
+            Err(_impossibility) => {
+                write_status_response(&mut stream, IMPOSSIBLE_STATUS);
+            }
+        }
+    }
 
     #[cfg(test)]
     mod tests {
@@ -272,7 +309,6 @@ mod ingress {
             });
 
             let mut client = TcpStream::connect(addr).unwrap();
-            // Invalid by schema: required fields like "magnitude" are missing.
             let _ = client.write_all(b"POST / HTTP/1.1\r\nContent-Length: 2\r\n\r\n{}");
             let _ = client.shutdown(std::net::Shutdown::Write);
 
@@ -291,9 +327,7 @@ mod ingress {
 //
 
 fn main() {
-    // Canon prerequisite: actuator socket must exist and be connectable at boot.
     crate::egress::init_fail_closed();
-
     ingress::start();
 }
 
@@ -301,11 +335,11 @@ fn main() {
 mod tests {
     use super::*;
     use std::io::Write;
-    use std::net::{TcpListener, TcpStream};
+    use std::net::TcpStream;
 
     #[test]
     fn read_http_body_hardened_accepts_preloaded_body_bytes() {
-        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
 
         let t = std::thread::spawn(move || {
@@ -321,5 +355,20 @@ mod tests {
         let _ = client.shutdown(std::net::Shutdown::Write);
 
         t.join().unwrap();
+    }
+
+    #[test]
+    fn resolve_domain_known() {
+        assert!(resolve_domain("test").is_some());
+        assert!(resolve_domain("payment").is_some());
+        assert!(resolve_domain("deploy").is_some());
+        assert!(resolve_domain("db_prod").is_some());
+    }
+
+    #[test]
+    fn resolve_domain_unknown() {
+        assert!(resolve_domain("unknown").is_none());
+        assert!(resolve_domain("").is_none());
+        assert!(resolve_domain("PAYMENT").is_none());
     }
 }
