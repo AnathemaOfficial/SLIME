@@ -435,20 +435,21 @@ V1:  [domain_id: u64] [magnitude: u64] [mac: u128]
 
 ## AB-S ↔ SLIME Type Mapping
 
-Anathema-Breaker (AB-S) is the formal law-layer that SLIME instantiates at runtime. After AB-S hardening, the type widths are:
+Anathema-Breaker (AB-S) is the formal law-layer that SLIME instantiates at runtime. The canonical type widths are:
 
-| Concept | AB-S (Rust) | SLIME Egress ABI | Notes |
+| Concept | AB-S (Rust) | SLIME Egress ABI | Pipeline |
 |---|---|---|---|
-| **Domain** | `Domain(u64)` — private field | `domain_id: u64` | No truncation permitted in pipeline |
-| **Magnitude** | `Magnitude(u64)` — private field | `magnitude: u64` | Direct mapping |
-| **Token** | N/A (AB-S is stateless) | `actuation_token: u128` | Token is SLIME-side metadata |
-| **Budget** | `Budget { capacity, progression }` — private fields | N/A (not in ABI) | Budget is AB-S internal only |
+| **Domain** | `Domain(u16)` — private field | `domain_id: u64` | u16 → u64 (zero-extended) |
+| **Magnitude** | `Magnitude(u32)` — private field | `magnitude: u64` | u32 → u64 (zero-extended) |
+| **Token** | N/A (AB-S is stateless) | `actuation_token: u128` | SLIME-side metadata |
+| **Budget** | `Budget { capacity: Capacity(u32), progression: Progression(u32) }` — private fields | N/A (not in ABI) | AB-S internal only |
 
 **Critical constraints:**
 
-- **No truncation:** No component may cast `domain_id` or `magnitude` to a smaller type (u16, u32). The canonical pipeline is `u64` end-to-end.
-- **No budget exposure:** AB-S Budget fields are private. SLIME does not expose or forward budget state. The integrator reads budget via getters only.
-- **ABI is fixed:** The 32-byte egress frame (`u64 + u64 + u128`) is unchanged by AB-S hardening. AB-S types map directly to the ABI without conversion.
+- **No truncation:** No component may cast `domain_id` or `magnitude` to a smaller type than AB-S provides. The egress ABI uses `u64` fields; AB-S uses narrower types (`u16`, `u32`). The pipeline performs safe zero-extension only.
+- **No budget exposure:** AB-S Budget fields are private. SLIME does not expose or forward budget state. Budget is constructed fresh per request from compile-time CoreSpec constants (V1 statelessness).
+- **ABI is fixed:** The 32-byte egress frame (`u64 + u64 + u128`) is unchanged by AB-S integration. AB-S narrower types are zero-extended into the ABI fields without loss.
+- **Domain resolution:** The runner uses a static compile-time table mapping domain strings to `Domain(u16)`, not a hash function. Unknown domains are structurally impossible. This is a deliberate divergence from the canon hash model, documented in `CONFORMANCE.md`.
 
 ---
 
