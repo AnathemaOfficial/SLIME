@@ -49,7 +49,6 @@ SLIME is part of a broader invariant-driven architecture:
 - SYF-Lab (experimental environment) https://github.com/AnathemaOfficial/SYF-Lab
 - SYF-Gate (admission verdict) https://github.com/AnathemaOfficial/SYF-Gate
 - SYF-Shield (irreversibility + capacity) https://github.com/AnathemaOfficial/SYF-Shield
-- Anathema-Breaker (law composition) https://github.com/AnathemaOfficial/Anathema-Breaker
 
 These are not extensions of SLIME,
 but parallel primitives built around invariant enforcement.
