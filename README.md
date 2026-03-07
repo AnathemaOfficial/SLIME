@@ -34,7 +34,7 @@ or any process-layer control system is incorrect.
 
 The root directory and `specs/` define the canonical law-layer.
 
-All executable, deployable, integration, dashboard, adversarial, and enterprise artifacts reside exclusively under `noncanon/`.
+All executable code resides under `noncanon/`. The reference runner compiles standalone with the default stub resolver.
 
 Anything outside `noncanon/` is documentation-only and defines no runtime behavior.
 
@@ -49,7 +49,6 @@ SLIME is part of a broader invariant-driven architecture:
 - SYF-Lab (experimental environment) https://github.com/AnathemaOfficial/SYF-Lab
 - SYF-Gate (admission verdict) https://github.com/AnathemaOfficial/SYF-Gate
 - SYF-Shield (irreversibility + capacity) https://github.com/AnathemaOfficial/SYF-Shield
-- Anathema-Breaker (law composition) https://github.com/AnathemaOfficial/Anathema-Breaker
 
 These are not extensions of SLIME,
 but parallel primitives built around invariant enforcement.
@@ -290,6 +289,21 @@ If you read it that way, you are applying the wrong mental model.
 
 ---
 
+## Building the Reference Runner
+
+```bash
+cd noncanon/implementation_bundle/slime-runner
+cargo build
+```
+
+This compiles with the default `stub_ab` feature — a standalone capacity-check
+resolver that demonstrates the SLIME interface without external dependencies.
+
+For enterprise deployments with the real law engine, see
+[SLIME Enterprise](https://github.com/AnathemaOfficial/SLIME-Enterprise) (private).
+
+---
+
 ## Status
 
 **SLIME v0 — CANON / SEALED**
@@ -297,4 +311,8 @@ If you read it that way, you are applying the wrong mental model.
 Development proceeds **only** by extension *around* SLIME, never inside it.
 
 ---
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).
 
